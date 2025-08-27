@@ -24,9 +24,9 @@ def handle_client(conn, addr):
 
 def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(("127.0.0.1", 5556))
+    server.bind(("127.0.0.1", 5555))
     server.listen()
-    print("[STARTED] Server listening on 127.0.0.1:5556")
+    print("[STARTED] Server listening on 127.0.0.1:5555")
     while True:
         conn, addr = server.accept()
         clients.append(conn)
