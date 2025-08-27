@@ -1,7 +1,7 @@
 import socket
 import threading
 
-# List of connected clients
+# List to keep track of connected clients
 clients = []
 
 def handle_client(conn, addr):
@@ -12,7 +12,7 @@ def handle_client(conn, addr):
             if not msg:
                 break
             print(f"[{addr}] {msg}")
-            # broadcast message to all other clients
+            # Broadcast to all other clients
             for client in clients:
                 if client != conn:
                     client.sendall(msg.encode())
@@ -24,9 +24,9 @@ def handle_client(conn, addr):
 
 def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(("127.0.0.1", 5555))
+    server.bind(("192.168.1.100", 5555))
     server.listen()
-    print("[STARTED] Server listening on 127.0.0.1:5555")
+    print("[STARTED] Server listening on 192.168.1.100:5555")
     while True:
         conn, addr = server.accept()
         clients.append(conn)
