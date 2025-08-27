@@ -5,7 +5,7 @@ from tkinter import scrolledtext
 
 # Networking setup
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect(("192.168.1.100", 5555))
+client.connect(("10.194.82.63", 5555))
 
 # GUI setup
 root = tk.Tk()
