@@ -1,60 +1,103 @@
 import socket
 import threading
+import time
 
-# Track connected clients as dict {conn: username}
-clients = {}
+# ...existing code...
+clients = {}                # conn -> username (None until registered)
+messages_buffer = []        # stored as plain "username: message" strings
+MAX_BUFFER = 200
 
-def broadcast(msg, sender_conn=None):
-    """Send message to all clients except the sender (if given)."""
-    for conn in clients:
-        if conn != sender_conn:
+def broadcast_message(message, sender_conn=None):
+    """Send message to all clients except sender_conn (if provided)."""
+    for client in list(clients.keys()):
+        if client == sender_conn:
+            continue
+        try:
+            client.sendall(message.encode())
+        except:
             try:
-                conn.sendall(msg.encode())
+                client.close()
             except:
-                conn.close()
-                remove_client(conn)
-
-def remove_client(conn):
-    """Remove client safely."""
-    if conn in clients:
-        username = clients[conn]
-        del clients[conn]
-        print(f"[DISCONNECTED] {username}")
-        broadcast(f"[SYSTEM]: {username} left the chat")
+                pass
+            if client in clients:
+                del clients[client]
 
 def handle_client(conn, addr):
+    print(f"[NEW CONNECTION] {addr} connected.")
     try:
-        # First message should be username
-        username = conn.recv(1024).decode().strip()
-        if not username:
-            conn.close()
-            return
+        # ensure we have an entry for this connection
+        clients[conn] = None
 
-        clients[conn] = username
-        print(f"[NEW CONNECTION] {username} ({addr}) connected.")
-        broadcast(f"[SYSTEM]: {username} joined the chat", sender_conn=conn)
+        # Immediately send buffered messages to the newly connected socket
+        # so the new client sees previous messages from others before it sends.
+        for old_msg in messages_buffer:
+            try:
+                conn.sendall(old_msg.encode())
+                time.sleep(0.01)
+            except:
+                # if sending buffered history fails, just continue
+                pass
 
+        # Now enter normal receive loop
         while True:
-            msg = conn.recv(1024).decode()
-            if not msg:
+            raw = conn.recv(2048)
+            if not raw:
                 break
-            print(f"[{username}] {msg}")
-            broadcast(f"{username}: {msg}", sender_conn=conn)
-    except:
-        pass
+            try:
+                msg = raw.decode()
+            except:
+                continue
+
+            # expect messages in "username: content" form
+            if ":" not in msg:
+                continue
+
+            sender, content = msg.split(":", 1)
+            sender = sender.strip()
+            content = content.strip()
+            formatted = f"{sender}: {content}"
+
+            # register username on first real message and broadcast join notice
+            if clients.get(conn) is None:
+                clients[conn] = sender
+                join_msg = f"[SERVER]: {sender} has joined the chat!"
+                # notify other clients about join (don't send to the joining client)
+                broadcast_message(join_msg, sender_conn=conn)
+
+            # store in buffer and broadcast the chat message to others
+            messages_buffer.append(formatted)
+            if len(messages_buffer) > MAX_BUFFER:
+                messages_buffer.pop(0)
+
+            broadcast_message(formatted, sender_conn=conn)
+
+    except Exception as e:
+        print(f"[ERROR] {addr} {e}")
+
     finally:
-        remove_client(conn)
-        conn.close()
+        # cleanup
+        username = clients.pop(conn, None)
+        if username:
+            leave_msg = f"[SERVER]: {username} has left the chat!"
+            broadcast_message(leave_msg)
+        try:
+            conn.close()
+        except:
+            pass
+        print(f"[DISCONNECTED] {addr}")
 
 def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(("127.0.0.1", 5556))
     server.listen()
     print("[STARTED] Server listening on 127.0.0.1:5556")
+
     while True:
         conn, addr = server.accept()
-        thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
-        thread.start()
+        # spawn handler thread
+        threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
 
 if __name__ == "__main__":
     start_server()
+# ...existing code...
