@@ -9,4 +9,12 @@ if __name__ == "__main__":
     username = login.run()
 
     if username:
-        ChatWindow(username, client).run()
+        groups = ["Kontol1", "Kontol2", "Kontol3"]  # Shared list object
+        while True:
+            group_window = GroupListWindow(groups)
+            selected_group = group_window.run()
+            group_window.root.destroy()  # Ensure window is closed
+            if not selected_group:
+                break
+            chat = ChatWindow(f"{username} ({selected_group})", client)
+            chat.run()

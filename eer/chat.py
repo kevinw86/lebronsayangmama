@@ -19,6 +19,11 @@ class ChatWindow:
                           bg="lightgray", pady=10)
         header.pack(fill=tk.X)
 
+        # --- Back Button ---
+        back_btn = tk.Button(self.root, text="Back to Groups", bg="orange", fg="black",
+                             font=("Arial", 10, "bold"), command=self.back_to_groups)
+        back_btn.pack(pady=5, padx=10, anchor="nw")
+
         # --- Scrollable Chat Frame ---
         chat_frame = tk.Frame(self.root)
         chat_frame.pack(fill=tk.BOTH, expand=True)
@@ -114,6 +119,10 @@ class ChatWindow:
                 self.add_message(sender.strip(), text.strip(), is_me=False)
             except:
                 break
+
+    # --- Back to Groups ---
+    def back_to_groups(self):
+        self.root.destroy()  # Close chat window
 
     # --- Run Mainloop ---
     def run(self):
