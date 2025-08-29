@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+
+#ignore cache files biar tete bisa commit

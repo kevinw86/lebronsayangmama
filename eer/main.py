@@ -16,5 +16,5 @@ if __name__ == "__main__":
             group_window.root.destroy()  # Ensure window is closed
             if not selected_group:
                 break
-            chat = ChatWindow(f"{username} ({selected_group})", client)
+            chat = ChatWindow(username, client, selected_group)
             chat.run()

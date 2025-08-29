@@ -1,60 +1,92 @@
 import socket
 import threading
 
-# Track connected clients as dict {conn: username}
 clients = {}
+messages_buffer = []  # still keeps recent messages, but no longer sent on join
+MAX_BUFFER = 200
 
-def broadcast(msg, sender_conn=None):
-    """Send message to all clients except the sender (if given)."""
-    for conn in clients:
-        if conn != sender_conn:
+
+def broadcast_message(message, sender_conn=None):
+    """Send message to all clients except sender_conn (if provided)."""
+    for client in list(clients.keys()):
+        if client == sender_conn:
+            continue
+        try:
+            client.sendall(message.encode())
+        except:
             try:
-                conn.sendall(msg.encode())
+                client.close()
             except:
-                conn.close()
-                remove_client(conn)
+                pass
+            if client in clients:
+                del clients[client]
 
-def remove_client(conn):
-    """Remove client safely."""
-    if conn in clients:
-        username = clients[conn]
-        del clients[conn]
-        print(f"[DISCONNECTED] {username}")
-        broadcast(f"[SYSTEM]: {username} left the chat")
 
 def handle_client(conn, addr):
+    print(f"[NEW CONNECTION] {addr} connected.")
+    username = None
     try:
-        # First message should be username
-        username = conn.recv(1024).decode().strip()
-        if not username:
-            conn.close()
-            return
-
+        # --- First message must be the username ---
+        username = conn.recv(2048).decode().strip()
         clients[conn] = username
-        print(f"[NEW CONNECTION] {username} ({addr}) connected.")
-        broadcast(f"[SYSTEM]: {username} joined the chat", sender_conn=conn)
+        print(f"[USERNAME] {addr} is {username}")
 
+        # --- Announce join ---
+        join_msg = f"[SERVER]: {username} has joined the chat!"
+        broadcast_message(join_msg, sender_conn=conn)
+
+        # --- Main loop ---
         while True:
-            msg = conn.recv(1024).decode()
+            msg = conn.recv(2048)
             if not msg:
                 break
-            print(f"[{username}] {msg}")
-            broadcast(f"{username}: {msg}", sender_conn=conn)
-    except:
-        pass
+            try:
+                msg = msg.decode()
+            except:
+                continue
+
+            if ":" not in msg:
+                continue
+
+            sender, content = msg.split(":", 1)
+            sender = sender.strip()
+            content = content.strip()
+            formatted = f"{sender}: {content}"
+
+            messages_buffer.append(formatted)
+            if len(messages_buffer) > MAX_BUFFER:
+                messages_buffer.pop(0)
+
+            broadcast_message(formatted, sender_conn=conn)
+
+    except Exception as e:
+        print(f"[ERROR] {addr} {e}")
+
     finally:
-        remove_client(conn)
-        conn.close()
+        if conn in clients:
+            username = clients[conn]
+            del clients[conn]
+            leave_msg = f"[SERVER]: {username} has left the chat!"
+            broadcast_message(leave_msg)
+        try:
+            conn.close()
+        except:
+            pass
+        print(f"[DISCONNECTED] {addr}")
+
 
 def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(("127.0.0.1", 5556))
     server.listen()
     print("[STARTED] Server listening on 127.0.0.1:5556")
+
     while True:
         conn, addr = server.accept()
-        thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
-        thread.start()
+        clients[conn] = None
+        threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
+
 
 if __name__ == "__main__":
     start_server()
