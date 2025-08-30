@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import datetime
 import threading
+import socket   # needed for shutdown
 
 
 class ChatWindow:
@@ -9,11 +10,11 @@ class ChatWindow:
         self.username = username
         self.client = client
 
-        # --- Send username to server immediately ---
+        # --- Send username + group as first message ---
         try:
-            self.client.sendall(self.username.encode())
+            self.client.sendall(f"{self.username}|{group_name}".encode())
         except Exception as e:
-            print("Failed to send username:", e)
+            print("Failed to send username/group:", e)
 
         # --- Main Window ---
         self.root = tk.Tk()
@@ -81,6 +82,8 @@ class ChatWindow:
 
         # --- Start Receiving Messages ---
         threading.Thread(target=self.receive_messages, daemon=True).start()
+        # Handle window close (X button)
+        self.root.protocol("WM_DELETE_WINDOW", self.back_to_groups)
 
     # --- Chat Bubble Helper ---
     def add_message(self, name, msg, is_me=False):
@@ -146,7 +149,6 @@ class ChatWindow:
         self.entry.delete(0, tk.END)
         self.entry.focus()
 
-    # --- Receive Messages ---
     def receive_messages(self):
         while True:
             try:
@@ -155,13 +157,8 @@ class ChatWindow:
                     break
 
                 if msg.startswith("[SERVER]:"):
-                    # Announcement (join/leave/system msg)
                     announcement = msg.replace("[SERVER]:", "").strip()
                     self.add_announcement(announcement)
-                    continue
-
-                if msg.startswith(self.username + ":"):
-                    # skip own (already shown)
                     continue
 
                 sender, text = msg.split(":", 1)
@@ -173,22 +170,36 @@ class ChatWindow:
     def add_announcement(self, text):
         row = tk.Frame(self.scrollable_frame, bg="white")
         row.pack(fill="x", pady=6)
+        row.grid_columnconfigure(0, weight=1)
+        row.grid_columnconfigure(1, weight=1)
+        row.grid_columnconfigure(2, weight=1)
 
         ann = tk.Label(
             row,
             text=text,
             font=("Arial", 10, "italic"),
             fg="gray",
-            bg="white"
+            bg="white",
+            wraplength=300
         )
-        ann.pack(anchor="center")
+        ann.grid(row=0, column=1, padx=10, sticky="n")
 
         self.root.after(50, lambda: self.canvas.yview_moveto(1.0))
 
-    # --- Back to Groups ---
     def back_to_groups(self):
+        try:
+            # Notify server that this user is leaving the current group
+            self.client.sendall(f"LEAVE_GROUP|{self.username}".encode())
+            self.client.shutdown(socket.SHUT_RDWR)  # close cleanly
+            self.client.close()
+        except:
+            pass
+
+        # Then destroy window
         self.root.destroy()
 
     # --- Run Mainloop ---
     def run(self):
         self.root.mainloop()
+
+    
