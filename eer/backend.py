@@ -137,14 +137,12 @@ def handle_client(conn, addr):
         if conn not in groups[group]["members"]:
             groups[group]["members"].append(conn)
 
-        # Send welcome message and recent messages
-        welcome_msg = f"[SERVER]: Welcome {username} to {group}!"
-        conn.sendall(welcome_msg.encode())
+        
         
         if group in messages_buffer and messages_buffer[group]:
-            for buffered_msg in messages_buffer[group][-10:]:
+            for buffered_msg in messages_buffer[group][-30:]:
                 try:
-                    conn.sendall(buffered_msg.encode())
+                    conn.sendall((buffered_msg + "\n").encode())
                 except:
                     pass
 
@@ -152,6 +150,10 @@ def handle_client(conn, addr):
         join_announcement = f"[SERVER]: {username} joined the group."
         broadcast_message(join_announcement, sender_conn=conn, group=group)
 
+        # Send welcome message and recent messages
+        welcome_msg = f"[SERVER]: Welcome {username} to {group}!"
+        conn.sendall((welcome_msg + "\n").encode())
+        
         # Main message loop
         while True:
             try:

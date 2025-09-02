@@ -39,25 +39,25 @@ class ChatApp:
 
                 # Wait for the server's first response to validate
                 chat_client.settimeout(3) # Wait up to 3 seconds for a response
-                response = chat_client.recv(1024).decode()
+                response = chat_client.recv(4096).decode()
                 chat_client.settimeout(None) # Reset timeout
 
+                # Split into individual messages
+                initial_messages = [m for m in response.strip().split("\n") if m]
+
                 # Check if login failed
-                if "[SERVER]: Incorrect password." in response or "[SERVER]: Group does not exist." in response:
-                    messagebox.showerror("Join Failed", response.replace("[SERVER]:", "").strip())
-                    # If we used a stored password and it failed, remove it
+                if any("Incorrect password" in m or "Group does not exist" in m for m in initial_messages):
+                    messagebox.showerror("Join Failed", " ".join(initial_messages).replace("[SERVER]:", "").strip())
                     if selected_group in self.joined_groups:
                         del self.joined_groups[selected_group]
                     chat_client.close()
-                    continue # Go back to the group list
+                    continue
 
-                # --- If we get here, login was successful! ---
-
-                # 1. Store the successful credentials
+                # --- Login success ---
                 self.joined_groups[selected_group] = group_password
 
-                # 2. Start the chat, passing the first message (e.g., the welcome message) to it
-                chat = ChatWindow(self.username, self.ip_address, chat_client, selected_group, initial_message=response)
+                # Start chat, passing ALL initial messages
+                chat = ChatWindow(self.username, self.ip_address, chat_client, selected_group, initial_messages)
                 chat.run()
 
                 try:
