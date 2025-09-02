@@ -6,15 +6,9 @@ import socket   # needed for shutdown
 
 
 class ChatWindow:
-    def __init__(self, username, client, group_name):
+    def __init__(self, username, client, group_name, initial_message=None):
         self.username = username
         self.client = client
-
-        # --- Send username + group as first message ---
-        try:
-            self.client.sendall(f"{self.username}|{group_name}".encode())
-        except Exception as e:
-            print("Failed to send username/group:", e)
 
         # --- Main Window ---
         self.root = tk.Tk()
@@ -81,6 +75,11 @@ class ChatWindow:
         self.entry.bind("<Return>", self.send_message)
 
         # --- Start Receiving Messages ---
+                # Process the initial message if it was provided
+        if initial_message:
+            # Run in a short delay to allow the UI to draw first
+            self.root.after(100, self.process_message, initial_message)
+        
         threading.Thread(target=self.receive_messages, daemon=True).start()
         # Handle window close (X button)
         self.root.protocol("WM_DELETE_WINDOW", self.back_to_groups)
@@ -142,12 +141,34 @@ class ChatWindow:
         msg = self.entry.get().strip()
         if msg:
             try:
-                self.client.sendall(f"{self.username}: {msg}".encode())
+                # Send message in format: "username: message"
+                formatted_msg = f"{self.username}: {msg}"
+                self.client.sendall(formatted_msg.encode())
                 self.add_message(self.username, msg, is_me=True)
             except Exception as e:
                 print("Send failed:", e)
         self.entry.delete(0, tk.END)
-        self.entry.focus()
+        self.entry.focus()  # Add focus back to entry
+        
+    def process_message(self, msg):
+        """Processes a single message string and adds it to the UI."""
+        # Handle server announcements
+        if msg.startswith("[SERVER]:"):
+            announcement = msg.replace("[SERVER]:", "").strip()
+            self.add_announcement(announcement)
+            return # Use return instead of continue
+        
+        # Handle group list responses (shouldn't happen here, but good practice)
+        if msg.startswith("GROUPLIST:"):
+            return
+            
+        # Handle normal chat messages (username: message)
+        if ":" in msg:
+            sender, text = msg.split(":", 1)
+            self.add_message(sender.strip(), text.strip(), is_me=(sender.strip() == self.username))
+        else:
+            # Handle other message formats
+            self.add_message("System", msg, is_me=False)
 
     def receive_messages(self):
         while True:
@@ -155,15 +176,36 @@ class ChatWindow:
                 msg = self.client.recv(1024).decode()
                 if not msg:
                     break
-
+                
+                self.process_message(msg) # <-- REFACTOR to use the helper method
+                    
+            except Exception as e:
+                print(f"Receive error: {e}")
+                # Add a message to the user that the connection was lost
+                self.add_announcement("Connection to server lost.")
+                break
+                
+                # Handle server announcements
                 if msg.startswith("[SERVER]:"):
                     announcement = msg.replace("[SERVER]:", "").strip()
                     self.add_announcement(announcement)
                     continue
-
-                sender, text = msg.split(":", 1)
-                self.add_message(sender.strip(), text.strip(), is_me=False)
-            except:
+                
+                # Handle group list responses
+                if msg.startswith("GROUPLIST:"):
+                    # This might be sent to chat window, but we don't need it here
+                    continue
+                    
+                # Handle normal chat messages (username: message)
+                if ":" in msg:
+                    sender, text = msg.split(":", 1)
+                    self.add_message(sender.strip(), text.strip(), is_me=(sender.strip() == self.username))
+                else:
+                    # Handle other message formats
+                    self.add_message("System", msg, is_me=False)
+                    
+            except Exception as e:
+                print(f"Receive error: {e}")
                 break
 
     # --- Announcement Helper ---
@@ -188,12 +230,9 @@ class ChatWindow:
 
     def back_to_groups(self):
         try:
-            # Notify server that this user is leaving the current group
             self.client.sendall(f"LEAVE_GROUP|{self.username}".encode())
-            self.client.shutdown(socket.SHUT_RDWR)  # close cleanly
-            self.client.close()
-        except:
-            pass
+        except Exception as e:
+            print(f"Failed to send LEAVE_GROUP message: {e}")
 
         # Then destroy window
         self.root.destroy()

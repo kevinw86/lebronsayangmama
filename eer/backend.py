@@ -1,8 +1,8 @@
 import socket
 import threading
 
-# Store clients as {conn: {"username": str, "group": str}}
 clients = {}
+groups = {}  # groupname: {"password": str, "members": [conn]}
 messages_buffer = {}  # {group: [messages]}
 MAX_BUFFER = 200
 
@@ -25,48 +25,133 @@ def broadcast_message(message, sender_conn=None, group=None):
                 del clients[client]
 
 
+def send_group_list():
+    group_list = ",".join(groups.keys())
+    for client in clients:
+        try:
+            client.sendall(f"GROUPLIST:{group_list}".encode())
+        except:
+            pass
+
+
 def handle_client(conn, addr):
     left_already = False
+    current_group = None
+    
     try:
-        # First message: username|group
-        first_msg = conn.recv(1024).decode()
+        # Read the first message
+        first_msg = conn.recv(1024).decode().strip()
+        if not first_msg:
+            conn.close()
+            return
+            
+        print(f"[DEBUG] {addr} first message: '{first_msg}'")
+
+
+        # Handle initial requests that are NOT chat logins
+        if first_msg == "GETGROUPS":
+            group_list = ",".join(groups.keys())
+            conn.sendall(f"GROUPLIST:{group_list}".encode())
+            print(f"[GROUP LIST SENT] to {addr}")
+            return # This connection's job is done
+
+        # Handle CREATEGROUP command
+        if first_msg.startswith("CREATEGROUP:"):
+            try:
+                # Parse the message "CREATEGROUP:name|password"
+                _, data = first_msg.split(":", 1)
+                name, password = data.split("|", 1)
+                
+                # Check if group already exists
+                if name in groups:
+                    conn.sendall("[SERVER]: Group with that name already exists.".encode())
+                else:
+                    # Create the new group
+                    groups[name] = {"password": password, "members": []}
+                    messages_buffer[name] = [] # Initialize the buffer for the new group
+                    conn.sendall(f"[SERVER]: Group '{name}' created successfully.".encode())
+                    print(f"[GROUP CREATED] Name: {name}, by {addr}")
+            
+            except Exception as e:
+                # Handle incorrect format
+                conn.sendall("[SERVER]: Invalid CREATEGROUP format.".encode())
+                print(f"[ERROR] Invalid CREATEGROUP from {addr}: {e}")
+            
+            return # This connection's job is done
+
+
+        # If not a command, assume it's a chat login attempt
         if "|" not in first_msg:
+            conn.sendall("[SERVER]: Invalid login format.".encode())
+            conn.close() # Keep this for safety, though 'return' is better
+            return
+            
+        parts = first_msg.split("|")
+        username = parts[0].strip()
+        group = parts[1].strip()
+        password = parts[2].strip() if len(parts) > 2 else ""
+        current_group = group
+
+        # Password check (Only for joining, not creating)
+        if group not in groups:
+             # If a user tries to JOIN a non-existent group
+            if not any(g for g in groups if g == group):
+                conn.sendall("[SERVER]: Group does not exist.".encode())
+                conn.close()
+                return
+            # This part handles creating a group on join, which you might not need anymore,
+            # but we'll leave it for now.
+            groups[group] = {"password": password, "members": []}
+            messages_buffer[group] = []
+            
+        if groups[group]["password"] != password:
+            conn.sendall("[SERVER]: Incorrect password.".encode())
             conn.close()
             return
 
-        username, group = first_msg.split("|", 1)
-        username = username.strip()
-        group = group.strip()
-
         # Register client
         clients[conn] = {"username": username, "group": group}
-        if group not in messages_buffer:
-            messages_buffer[group] = []
+        if conn not in groups[group]["members"]:
+            groups[group]["members"].append(conn)
 
-        # Announce join
+        # Send welcome message and recent messages
+        welcome_msg = f"[SERVER]: Welcome {username} to {group}!"
+        conn.sendall(welcome_msg.encode())
+        
+        if group in messages_buffer and messages_buffer[group]:
+            for buffered_msg in messages_buffer[group][-10:]:
+                try:
+                    conn.sendall(buffered_msg.encode())
+                except:
+                    pass
+
+        # Announce join to group
         join_announcement = f"[SERVER]: {username} joined the group."
         broadcast_message(join_announcement, sender_conn=conn, group=group)
 
-        # Main loop
+        # Main message loop
         while True:
-            msg = conn.recv(1024).decode()
-            if not msg:
+            try:
+                msg = conn.recv(1024).decode().strip()
+                if not msg:
+                    break
+
+                if msg.startswith("LEAVE_GROUP|"):
+                    leave_user = msg.split("|", 1)[1]
+                    announcement = f"[SERVER]: {leave_user} left the group."
+                    broadcast_message(announcement, sender_conn=conn, group=group)
+                    left_already = True
+                    break
+                    
+                messages_buffer[group].append(msg)
+                if len(messages_buffer[group]) > MAX_BUFFER:
+                    messages_buffer[group].pop(0)
+                    
+                broadcast_message(msg, sender_conn=conn, group=group)
+
+            except Exception as e:
+                print(f"[ERROR] in message loop: {e}")
                 break
-
-            # Handle leave
-            if msg.startswith("LEAVE_GROUP|"):
-                leave_user = msg.split("|", 1)[1]
-                announcement = f"[SERVER]: {leave_user} left the group."
-                broadcast_message(announcement, sender_conn=conn, group=group)
-                left_already = True
-                break
-
-            # Normal chat
-            messages_buffer[group].append(msg)
-            if len(messages_buffer[group]) > MAX_BUFFER:
-                messages_buffer[group].pop(0)
-
-            broadcast_message(msg, sender_conn=conn, group=group)
 
     except Exception as e:
         print(f"[ERROR] {addr}: {e}")
@@ -76,11 +161,13 @@ def handle_client(conn, addr):
             left_user = clients[conn]["username"]
             left_group = clients[conn]["group"]
 
-            # Only announce if not already announced
             if not left_already and left_group:
                 announcement = f"[SERVER]: {left_user} left the group."
                 broadcast_message(announcement, sender_conn=conn, group=left_group)
 
+            if left_group in groups and conn in groups[left_group]["members"]:
+                groups[left_group]["members"].remove(conn)
+            
             del clients[conn]
 
         try:
