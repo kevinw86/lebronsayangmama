@@ -22,7 +22,7 @@ class ChatApp:
 
         # Directly show group list and handle chat loop
         while True:
-            group_window = GroupListWindow(self.ip_address, self.joined_groups)
+            group_window = GroupListWindow(self.username, self.ip_address, self.joined_groups)
             selected_group, group_password = group_window.run()
             group_window.root.destroy()
 
@@ -57,7 +57,7 @@ class ChatApp:
                 self.joined_groups[selected_group] = group_password
 
                 # 2. Start the chat, passing the first message (e.g., the welcome message) to it
-                chat = ChatWindow(self.username, chat_client, selected_group, initial_message=response)
+                chat = ChatWindow(self.username, self.ip_address, chat_client, selected_group, initial_message=response)
                 chat.run()
 
                 try:

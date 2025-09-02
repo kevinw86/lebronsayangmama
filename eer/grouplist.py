@@ -4,9 +4,10 @@ from tkinter import simpledialog, messagebox
 from network import connect_to_server # Import the connection function
 
 class GroupListWindow:
-    def __init__(self, ip_address, joined_groups): # <-- CHANGE THIS
+    def __init__(self, username, ip_address, joined_groups):
+        self.username = username
         self.ip_address = ip_address
-        self.joined_groups = joined_groups # <-- ADD THIS
+        self.joined_groups = joined_groups
         self.groups = []
         self.selected_group = None
         self.selected_group_password = None
@@ -17,7 +18,62 @@ class GroupListWindow:
         self.root.geometry("400x500")
         self.root.configure(bg="white")
 
-        header_frame = tk.Frame(self.root, bg="white")
+
+        # --- Main layout: left sidebar and right main area ---
+        main_container = tk.Frame(self.root, bg="white")
+        main_container.pack(fill=tk.BOTH, expand=True)
+
+        # --- Left Sidebar ---
+        sidebar_container = tk.Frame(main_container, bg="#e0e0e0", bd=2, relief="ridge", width=135)
+        sidebar_container.pack(side="left", fill="y")
+        sidebar_container.pack_propagate(False)
+
+        left_sidebar = tk.Frame(sidebar_container, bg="white")
+        left_sidebar.pack(fill="both", expand=True, padx=16, pady=16)
+
+        # Username label above box
+        tk.Label(
+            left_sidebar,
+            text="Username",
+            font=("Arial", 11, "bold"),
+            bg="white",
+            fg="#454545"
+        ).pack(pady=(10,0), padx=5, anchor="w")
+
+        # Username box
+        username_frame = tk.Frame(left_sidebar, bg="#f5f5f5", relief="groove", bd=3, padx=6, pady=6)
+        username_frame.pack(pady=(5,15), padx=5, fill="x")
+        tk.Label(
+            username_frame,
+            text=f"{self.username}",
+            font=("Arial", 12, "bold"),
+            bg="#f5f5f5"
+        ).pack(pady=8)
+
+        # IP Address label above box
+        tk.Label(
+            left_sidebar,
+            text="IP Address",
+            font=("Arial", 11, "bold"),
+            bg="white",
+            fg="#454545"
+        ).pack(pady=(0,0), padx=5, anchor="w")
+
+        # IP Address box
+        ip_frame = tk.Frame(left_sidebar, bg="#f5f5f5", relief="groove", bd=3, padx=6, pady=6)
+        ip_frame.pack(pady=(5,15), padx=5, fill="x")
+        tk.Label(
+            ip_frame,
+            text=f"{self.ip_address}",
+            font=("Arial", 12, "bold"),
+            bg="#f5f5f5"
+        ).pack(pady=8)
+
+        # --- Right main area ---
+        right_container = tk.Frame(main_container, bg="white")
+        right_container.pack(side="left", fill="both", expand=True)
+
+        header_frame = tk.Frame(right_container, bg="white")
         header_frame.pack(fill=tk.X)
         header = tk.Label(
             header_frame, text="Group List",
@@ -26,8 +82,15 @@ class GroupListWindow:
         )
         header.pack(side="left", fill=tk.X, expand=True)
 
+        # Notification button (after group list is displayed)
+        notif_btn = tk.Button(
+            header_frame, text="🔔", font=("Arial", 16), bg="white", fg="darkred",
+            relief="flat", command=self.open_notifications
+        )
+        notif_btn.pack(side="right", padx=10, pady=5)
+
         # --- Scrollable group list ---
-        container = tk.Frame(self.root, bg="white")
+        container = tk.Frame(right_container, bg="white")
         container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
 
         self.canvas = tk.Canvas(container, bg="white", highlightthickness=0)
@@ -53,16 +116,8 @@ class GroupListWindow:
         self.fetch_groups()
         self.display_groups()
 
-
-        # Notification button (after group list is displayed)
-        notif_btn = tk.Button(
-            header_frame, text="🔔", font=("Arial", 16), bg="white", fg="darkred",
-            relief="flat", command=self.open_notifications
-        )
-        notif_btn.pack(side="right", padx=10, pady=5)
-
         # --- Action buttons at the bottom ---
-        button_frame = tk.Frame(self.root, bg="white")
+        button_frame = tk.Frame(right_container, bg="white")
         button_frame.pack(side="bottom", fill="x", padx=20, pady=10)
 
         create_btn = tk.Button(
@@ -96,7 +151,7 @@ class GroupListWindow:
             "Welcome to SevenChat!"
         ]
         from notification import NotificationWindow
-        NotificationWindow(self.root, notifications)
+        NotificationWindow(self.username, self.ip_address, self.root, notifications)
 
     def _on_mousewheel(self, event):
         if event.num == 5 or event.delta < 0:
