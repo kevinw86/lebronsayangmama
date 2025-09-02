@@ -78,6 +78,29 @@ def handle_client(conn, addr):
                 print(f"[ERROR] Invalid CREATEGROUP from {addr}: {e}")
             
             return # This connection's job is done
+        
+        if first_msg.startswith("DELETEGROUP:"):
+            try:
+                _, data = first_msg.split(":", 1)
+                name, password = data.split("|", 1)
+                name = name.strip()
+                password = password.strip()
+                print(f"[DELETEGROUP] Request for: '{name}' (all groups: {list(groups.keys())})")
+                if name not in groups:
+                    conn.sendall("[SERVER]: Group does not exist.".encode())
+                elif groups[name]["password"] != password:
+                    conn.sendall("[SERVER]: Incorrect password.".encode())
+                else:
+                    # Remove group and its messages
+                    del groups[name]
+                    if name in messages_buffer:
+                        del messages_buffer[name]
+                    conn.sendall(f"[SERVER]: Group '{name}' deleted.".encode())
+                    print(f"[GROUP DELETED] Name: {name}, by {addr}")
+            except Exception as e:
+                conn.sendall("[SERVER]: Invalid DELETEGROUP format.".encode())
+                print(f"[ERROR] Invalid DELETEGROUP from {addr}: {e}")
+            return
 
 
         # If not a command, assume it's a chat login attempt

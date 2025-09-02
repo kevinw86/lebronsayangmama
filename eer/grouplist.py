@@ -17,13 +17,16 @@ class GroupListWindow:
         self.root.geometry("400x500")
         self.root.configure(bg="white")
 
+        header_frame = tk.Frame(self.root, bg="white")
+        header_frame.pack(fill=tk.X)
         header = tk.Label(
-            self.root, text="Group List",
+            header_frame, text="Group List",
             font=("Arial", 18, "bold"),
             bg="white", pady=10
         )
-        header.pack(fill=tk.X)
+        header.pack(side="left", fill=tk.X, expand=True)
 
+        # --- Scrollable group list ---
         container = tk.Frame(self.root, bg="white")
         container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
 
@@ -38,9 +41,7 @@ class GroupListWindow:
             "<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
-        
-        self.canvas.configure(yscrollcommand=self.scrollbar.set) # Link scrollbar
-
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
         self.canvas.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
 
@@ -48,26 +49,54 @@ class GroupListWindow:
         self.canvas.bind_all("<Button-4>", self._on_mousewheel)
         self.canvas.bind_all("<Button-5>", self._on_mousewheel)
 
-        # Buttons
+        # Initial fetch and display
+        self.fetch_groups()
+        self.display_groups()
+
+
+        # Notification button (after group list is displayed)
+        notif_btn = tk.Button(
+            header_frame, text="🔔", font=("Arial", 16), bg="white", fg="darkred",
+            relief="flat", command=self.open_notifications
+        )
+        notif_btn.pack(side="right", padx=10, pady=5)
+
+        # --- Action buttons at the bottom ---
+        button_frame = tk.Frame(self.root, bg="white")
+        button_frame.pack(side="bottom", fill="x", padx=20, pady=10)
+
         create_btn = tk.Button(
-            self.root, text="Create Group",
+            button_frame, text="Create Group",
             font=("Arial", 12, "bold"),
             bg="#89b4fa", fg="black",
             command=self.create_group
         )
-        create_btn.pack(pady=10, ipadx=10, ipady=5, fill=tk.X, padx=20)
+        create_btn.pack(fill=tk.X, pady=4)
 
         join_btn = tk.Button(
-            self.root, text="Join Selected Group",
+            button_frame, text="Join Selected Group",
             font=("Arial", 12, "bold"),
             bg="#a6e3a1", fg="black",
             command=self.join_group
         )
-        join_btn.pack(pady=(0,20), ipadx=10, ipady=5, fill=tk.X, padx=20)
+        join_btn.pack(fill=tk.X, pady=4)
 
-        # Initial fetch and display
-        self.fetch_groups()
-        self.display_groups()
+        delete_btn = tk.Button(
+            button_frame, text="Delete Selected Group",
+            font=("Arial", 12, "bold"),
+            bg="#f38ba8", fg="white",
+            command=self.delete_group
+        )
+        delete_btn.pack(fill=tk.X, pady=4)
+
+    def open_notifications(self):
+        notifications = [
+            "You have a new message in Group1.",
+            "Group2 was updated.",
+            "Welcome to SevenChat!"
+        ]
+        from notification import NotificationWindow
+        NotificationWindow(self.root, notifications)
 
     def _on_mousewheel(self, event):
         if event.num == 5 or event.delta < 0:
@@ -156,6 +185,7 @@ class GroupListWindow:
             self.selected_group_password = password
             self.root.quit()
 
+
     def create_group(self):
         groupname = simpledialog.askstring("Create Group", "Enter new group name:")
         if not groupname:
@@ -163,13 +193,11 @@ class GroupListWindow:
         password = simpledialog.askstring("Create Group", "Set group password:", show='*')
         if password is None: # User cancelled
             return
-            
         client = None
         try:
             # Create a NEW connection for this task
             client = connect_to_server(host=self.ip_address)
             # The backend needs to handle CREATEGROUP as a first message.
-            # We'll add this logic to backend.py
             client.sendall(f"CREATEGROUP:{groupname}|{password}".encode())
             client.settimeout(2)
             resp = client.recv(1024).decode()
@@ -180,8 +208,35 @@ class GroupListWindow:
         finally:
             if client:
                 client.close() # Always close the connection
-        
         # After attempting to create, refresh the group list
+        self.fetch_groups()
+        self.display_groups()
+
+    def delete_group(self):
+        if self.selected_group is None:
+            messagebox.showwarning("No Group Selected", "Please select a group to delete.")
+            return
+        confirm = messagebox.askyesno("Delete Group", f"Are you sure you want to delete '{self.selected_group}'?")
+        if not confirm:
+            return
+        password = simpledialog.askstring("Delete Group", f"Enter password for '{self.selected_group}':", show='*')
+        if password is None:
+            return
+        client = None
+        try:
+            client = connect_to_server(host=self.ip_address)
+            # The backend needs to handle DELETEGROUP as a first message.
+            client.sendall(f"DELETEGROUP:{self.selected_group}|{password}".encode())
+            client.settimeout(2)
+            resp = client.recv(1024).decode()
+            if resp:
+                messagebox.showinfo("Server Response", resp)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete group: {e}")
+        finally:
+            if client:
+                client.close()
+        # After attempting to delete, refresh the group list
         self.fetch_groups()
         self.display_groups()
 

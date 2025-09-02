@@ -2,28 +2,39 @@ import tkinter as tk
 from tkinter import ttk
 import datetime
 import threading
-import socket   # needed for shutdown
+import socket
+from notification import NotificationWindow
 
 
 class ChatWindow:
     def __init__(self, username, client, group_name, initial_message=None):
         self.username = username
         self.client = client
+        self.initial_message = initial_message
 
         # --- Main Window ---
         self.root = tk.Tk()
         self.root.title(f"Group Chat - {group_name} ({username})")
         self.root.geometry("500x600")
 
-        # --- Header with group name ---
+        # --- Header with group name and notification button ---
+        header_frame = tk.Frame(self.root, bg="lightgray")
+        header_frame.pack(fill=tk.X)
         header = tk.Label(
-            self.root,
+            header_frame,
             text=group_name,
             font=("Arial", 18, "bold"),
             bg="lightgray",
             pady=10
         )
-        header.pack(fill=tk.X)
+
+        
+        header.pack(side="left", fill=tk.X, expand=True)
+        notif_btn = tk.Button(
+            header_frame, text="🔔", font=("Arial", 16), bg="lightgray", fg="darkred",
+            relief="flat", command=self.open_notifications
+        )
+        notif_btn.pack(side="right", padx=10, pady=5)
 
         # --- Back Button ---
         back_btn = tk.Button(
@@ -75,15 +86,21 @@ class ChatWindow:
         self.entry.bind("<Return>", self.send_message)
 
         # --- Start Receiving Messages ---
-                # Process the initial message if it was provided
-        if initial_message:
+        if self.initial_message:
             # Run in a short delay to allow the UI to draw first
-            self.root.after(100, self.process_message, initial_message)
+            self.root.after(100, self.process_message, self.initial_message)
         
         threading.Thread(target=self.receive_messages, daemon=True).start()
         # Handle window close (X button)
         self.root.protocol("WM_DELETE_WINDOW", self.back_to_groups)
 
+    def open_notifications(self):
+        notifications = [
+            "You have a new message in this group.",
+            "Someone joined the group.",
+            "Welcome to SevenChat!"
+        ]
+        NotificationWindow(self.root, notifications)
     # --- Chat Bubble Helper ---
     def add_message(self, name, msg, is_me=False):
         timestamp = datetime.datetime.now().strftime("%H:%M")
@@ -241,4 +258,4 @@ class ChatWindow:
     def run(self):
         self.root.mainloop()
 
-    
+
