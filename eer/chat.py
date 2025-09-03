@@ -141,12 +141,13 @@ class ChatWindow:
 
         # --- Start Receiving Messages ---
         if self.initial_message:
-            # Run in a short delay to allow the UI to draw first
-            self.root.after(100, self.process_message, self.initial_message)
-        
+            for msg in self.initial_message:   # ✅ loop through messages individually
+                self.root.after(100, self.process_message, msg)
+
         threading.Thread(target=self.receive_messages, daemon=True).start()
         # Handle window close (X button)
         self.root.protocol("WM_DELETE_WINDOW", self.back_to_groups)
+
 
     def open_notifications(self):
         notifications = [
@@ -244,39 +245,19 @@ class ChatWindow:
     def receive_messages(self):
         while True:
             try:
-                msg = self.client.recv(1024).decode()
-                if not msg:
+                data = self.client.recv(1024).decode()
+                if not data:
                     break
-                
-                self.process_message(msg) # <-- REFACTOR to use the helper method
-                    
+
+                # Split by newline to handle buffered history
+                for msg in data.strip().split("\n"):
+                    if msg:
+                        # Schedule UI-safe call
+                        self.root.after(0, self.process_message, msg)
+
             except Exception as e:
                 print(f"Receive error: {e}")
-                # Add a message to the user that the connection was lost
-                self.add_announcement("Connection to server lost.")
-                break
-                
-                # Handle server announcements
-                if msg.startswith("[SERVER]:"):
-                    announcement = msg.replace("[SERVER]:", "").strip()
-                    self.add_announcement(announcement)
-                    continue
-                
-                # Handle group list responses
-                if msg.startswith("GROUPLIST:"):
-                    # This might be sent to chat window, but we don't need it here
-                    continue
-                    
-                # Handle normal chat messages (username: message)
-                if ":" in msg:
-                    sender, text = msg.split(":", 1)
-                    self.add_message(sender.strip(), text.strip(), is_me=(sender.strip() == self.username))
-                else:
-                    # Handle other message formats
-                    self.add_message("System", msg, is_me=False)
-                    
-            except Exception as e:
-                print(f"Receive error: {e}")
+                self.root.after(0, self.add_announcement, "Connection to server lost.")
                 break
 
     # --- Announcement Helper ---
