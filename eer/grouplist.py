@@ -145,11 +145,21 @@ class GroupListWindow:
         delete_btn.pack(fill=tk.X, pady=4)
 
     def open_notifications(self):
-        notifications = [
-            "You have a new message in Group1.",
-            "Group2 was updated.",
-            "Welcome to SevenChat!"
-        ]
+        notifications = []
+        client = None
+        try:
+            client = connect_to_server(host=self.ip_address)
+            client.sendall(f"GETNOTIFICATIONS:{self.username}".encode())
+            client.settimeout(2)
+            data = client.recv(4096).decode()
+            if data.startswith("NOTIFICATIONS:"):
+                notif_str = data[len("NOTIFICATIONS:"):].strip()
+                notifications = [n for n in notif_str.split("||") if n]
+        except Exception as e:
+            print(f"Error fetching notifications: {e}")
+        finally:
+            if client:
+                client.close()
         from notification import NotificationWindow
         NotificationWindow(self.username, self.ip_address, self.root, notifications)
 

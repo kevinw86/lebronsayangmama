@@ -45,14 +45,14 @@ def handle_client(conn, addr):
             conn.close()
             return
             
-        print(f"[DEBUG] {addr} first message: '{first_msg}'")
+            # Debug print removed
 
 
         # Handle initial requests that are NOT chat logins
         if first_msg == "GETGROUPS":
             group_list = ",".join(groups.keys())
             conn.sendall(f"GROUPLIST:{group_list}".encode())
-            print(f"[GROUP LIST SENT] to {addr}")
+            print(f"[INFO] Group list sent to {addr}")
             return # This connection's job is done
 
         # Handle CREATEGROUP command
@@ -70,12 +70,12 @@ def handle_client(conn, addr):
                     groups[name] = {"password": password, "members": []}
                     messages_buffer[name] = [] # Initialize the buffer for the new group
                     conn.sendall(f"[SERVER]: Group '{name}' created successfully.".encode())
-                    print(f"[GROUP CREATED] Name: {name}, by {addr}")
+                    print(f"[INFO] Group '{name}' created")
             
             except Exception as e:
                 # Handle incorrect format
                 conn.sendall("[SERVER]: Invalid CREATEGROUP format.".encode())
-                print(f"[ERROR] Invalid CREATEGROUP from {addr}: {e}")
+                # Debug print removed
             
             return # This connection's job is done
         
@@ -85,7 +85,7 @@ def handle_client(conn, addr):
                 name, password = data.split("|", 1)
                 name = name.strip()
                 password = password.strip()
-                print(f"[DELETEGROUP] Request for: '{name}' (all groups: {list(groups.keys())})")
+                # Debug print removed
                 if name not in groups:
                     conn.sendall("[SERVER]: Group does not exist.".encode())
                 elif groups[name]["password"] != password:
@@ -96,10 +96,38 @@ def handle_client(conn, addr):
                     if name in messages_buffer:
                         del messages_buffer[name]
                     conn.sendall(f"[SERVER]: Group '{name}' deleted.".encode())
-                    print(f"[GROUP DELETED] Name: {name}, by {addr}")
+                    print(f"[INFO] Group '{name}' deleted")
             except Exception as e:
                 conn.sendall("[SERVER]: Invalid DELETEGROUP format.".encode())
-                print(f"[ERROR] Invalid DELETEGROUP from {addr}: {e}")
+                # Debug print removed
+            return
+
+        # Handle GETNOTIFICATIONS command
+        if first_msg.startswith("GETNOTIFICATIONS:"):
+            try:
+                _, username = first_msg.split(":", 1)
+                username = username.strip()
+                
+                # Get recent messages for this user (from all groups they might be interested in)
+                notifications = []
+                for group_name, group_data in groups.items():
+                    if group_name in messages_buffer:
+                        # Get last 5 messages from each group
+                        recent_messages = messages_buffer[group_name][-5:]
+                        for msg in recent_messages:
+                            # Only include messages from others, not from the requesting user
+                            if msg.startswith(f'[chat] [{group_name}]') and f'[{username} -' not in msg:
+                                notifications.append(msg)
+                
+                # Send notifications back
+                if notifications:
+                    notif_str = "||".join(notifications)
+                    conn.sendall(f"NOTIFICATIONS:{notif_str}".encode())
+                else:
+                    conn.sendall("NOTIFICATIONS:".encode())
+                print(f"[INFO] Notifications sent to {username}")
+            except Exception as e:
+                conn.sendall("NOTIFICATIONS:".encode())
             return
 
 
@@ -136,6 +164,8 @@ def handle_client(conn, addr):
         clients[conn] = {"username": username, "group": group}
         if conn not in groups[group]["members"]:
             groups[group]["members"].append(conn)
+        
+        print(f"[INFO] {username} joined group '{group}'")
 
         
         
@@ -168,18 +198,26 @@ def handle_client(conn, addr):
                     left_already = True
                     break
                     
-                messages_buffer[group].append(msg)
+                # Format chat message as [chat] [groupname] [username - chat]
+                if ':' in msg:
+                    sender, chat_text = msg.split(':', 1)
+                    formatted_msg = f'[chat] [{group}] [{sender.strip()} - {chat_text.strip()}]'
+                else:
+                    formatted_msg = msg
+                    
+                messages_buffer[group].append(formatted_msg)
                 if len(messages_buffer[group]) > MAX_BUFFER:
                     messages_buffer[group].pop(0)
                     
-                broadcast_message(msg, sender_conn=conn, group=group)
+                broadcast_message(formatted_msg, sender_conn=conn, group=group)
 
             except Exception as e:
-                print(f"[ERROR] in message loop: {e}")
+                # Handle error silently
                 break
 
     except Exception as e:
-        print(f"[ERROR] {addr}: {e}")
+        # Handle error silently
+        pass
 
     finally:
         if conn in clients:
@@ -199,8 +237,8 @@ def handle_client(conn, addr):
             conn.close()
         except:
             pass
-
-        print(f"[DISCONNECTED] {addr}")
+        
+        print(f"[INFO] Client {addr} disconnected")
 
 
 def start_server(host="127.0.0.1", port=5556):
@@ -212,7 +250,7 @@ def start_server(host="127.0.0.1", port=5556):
 
     while True:
         conn, addr = server.accept()
-        print(f"[NEW CONNECTION] {addr}")
+        print(f"[INFO] New connection from {addr}")
         threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
 
 

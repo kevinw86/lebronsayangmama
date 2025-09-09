@@ -9,13 +9,13 @@ class LoginWindow:
         self.root = tk.Tk()
         self.root.title("SevenChat - Login")
         self.root.geometry("400x400")
-        self.root.configure(bg="#1e1e2e")  # dark background
+        self.root.configure(bg="#2c3e50")  # Dark blue background
 
         # --- Logo / Title (speech bubble style) ---
         bubble = tk.Label(
             self.root, text="💬 SevenChat",
             font=("Arial", 20, "bold"),
-            bg="#89b4fa", fg="#1e1e2e",
+            bg="#5d6d7e", fg="#ecf0f1",  # soft blue-gray with white text
             padx=20, pady=10
         )
         bubble.pack(pady=(30, 40))
@@ -24,7 +24,7 @@ class LoginWindow:
         username_label = tk.Label(
             self.root, text="Username",
             font=("Arial", 12, "bold"),
-            bg="#1e1e2e", fg="#a6e3a1"
+            bg="#2c3e50", fg="#aab7b8"  # light gray color
         )
         username_label.pack(pady=(5, 2))
 
@@ -33,7 +33,7 @@ class LoginWindow:
         self.username_entry = tk.Entry(
             self.root, textvariable=self.username_var,
             font=("Arial", 14),
-            bg="#313244", fg="white", insertbackground="white",
+            bg="#34495e", fg="white", insertbackground="white",
             relief="flat", justify="center"
         )
         self.username_entry.pack(ipady=8, ipadx=10, pady=5)
@@ -43,7 +43,7 @@ class LoginWindow:
         ip_label = tk.Label(
             self.root, text="IP Address",
             font=("Arial", 12, "bold"),
-            bg="#1e1e2e", fg="#a6e3a1"
+            bg="#2c3e50", fg="#aab7b8"  # light gray color
         )
         ip_label.pack(pady=(10, 2))
 
@@ -52,7 +52,7 @@ class LoginWindow:
         self.ip_entry = tk.Entry(
             self.root, textvariable=self.ip_var,
             font=("Arial", 14),
-            bg="#313244", fg="white", insertbackground="white",
+            bg="#34495e", fg="white", insertbackground="white",
             relief="flat", justify="center"
         )
         self.ip_entry.pack(ipady=8, ipadx=10, pady=5)
@@ -61,8 +61,8 @@ class LoginWindow:
         self.confirm_btn = tk.Button(
             self.root, text="Login",
             font=("Arial", 14, "bold"),
-            bg="#89b4fa", fg="#1e1e2e",
-            activebackground="#74c7ec",
+            bg="#5d6d7e", fg="#ecf0f1",  # soft blue-gray with white text
+            activebackground="#7f8c8d",
             activeforeground="black",
             relief="flat", padx=20, pady=10,
             command=self.submit
@@ -72,7 +72,7 @@ class LoginWindow:
         # --- Status Label ---
         self.status_label = tk.Label(
             self.root, text="", font=("Arial", 10),
-            bg="#1e1e2e", fg="red"
+            bg="#2c3e50", fg="red"
         )
         self.status_label.pack()
 

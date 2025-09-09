@@ -150,11 +150,24 @@ class ChatWindow:
 
 
     def open_notifications(self):
-        notifications = [
-            "You have a new message in this group.",
-            "Someone joined the group.",
-            "Welcome to SevenChat!"
-        ]
+        notifications = []
+        try:
+            # Create a new socket connection to fetch notifications
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((self.ip_address, 12345))  # Change port if needed
+            s.sendall(f"GETNOTIFICATIONS:{self.username}".encode())
+            s.settimeout(2)
+            data = s.recv(4096).decode()
+            if data.startswith("NOTIFICATIONS:"):
+                notif_str = data[len("NOTIFICATIONS:"):].strip()
+                notifications = [n for n in notif_str.split("||") if n]
+        except Exception as e:
+            print(f"Error fetching notifications: {e}")
+        finally:
+            try:
+                s.close()
+            except:
+                pass
         NotificationWindow(self.username, self.ip_address, self.root, notifications)
     # --- Chat Bubble Helper ---
     def add_message(self, name, msg, is_me=False):

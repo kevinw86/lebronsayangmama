@@ -10,8 +10,9 @@ class ChatApp:
     def __init__(self):
         self.username = None
         self.ip_address = None
-        self.joined_groups = {} # <-- ADD THIS DICTIONARY to store {group_name: password}
-        
+        self.joined_groups = {} # <-- ADD THIS DICTIONARY to store {group_name: password}]
+        self.notification_window = {}
+
     def run(self):
         # Login
         login = LoginWindow()

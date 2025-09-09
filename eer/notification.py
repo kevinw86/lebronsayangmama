@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 class NotificationWindow:
-    def __init__(self, username, ip_address, parent, notifications=None):
+    def __init__(self, username, ip_address, parent, notifications):
         self.root = tk.Toplevel(parent)
         self.root.title("Notification")
         self.root.geometry("400x500")
@@ -116,10 +116,4 @@ class NotificationWindow:
                 box.pack(pady=8, padx=10)
 
 
-# Example usage
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.withdraw()  # hide root window
-    sample_notifications = ["Notification 1...", "Notification 2...", "Notification 3..."]
-    NotificationWindow(root,  sample_notifications)
-    root.mainloop()
+## Example usage removed: notifications are now fetched from the server in grouplist.py
