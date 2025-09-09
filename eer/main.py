@@ -10,17 +10,14 @@ class ChatApp:
     def __init__(self):
         self.username = None
         self.ip_address = None
-        self.joined_groups = {} # <-- ADD THIS DICTIONARY to store {group_name: password}]
-        self.notification_window = {}
-
+        self.joined_groups = {}
+        
     def run(self):
-        # Login
         login = LoginWindow()
         self.username, self.ip_address = login.run()
         if not self.username or not self.ip_address:
             return
 
-        # Delegate group/chat logic to network.py
         from network import chat_session
         chat_session(self.username, self.ip_address, self.joined_groups)
 

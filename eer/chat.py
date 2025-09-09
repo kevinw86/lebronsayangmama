@@ -7,17 +7,22 @@ from notification import NotificationWindow
 
 
 class ChatWindow:
-    def __init__(self, username, ip_address, client, group_name, initial_message=None):
+    def __init__(self, username, ip_address, client, group_name, initial_message=None, notification_system=None):
         self.username = username
         self.client = client
+        self.group_name = group_name
         self.initial_message = initial_message
         self.ip_address = ip_address
+        self.notification_system = notification_system
+
+        # Mark this group as active in notification system
+        if self.notification_system:
+            self.notification_system.set_active_group(group_name)
 
         # --- Main Window ---
         self.root = tk.Tk()
         self.root.title(f"Group Chat - {group_name} ({username})")
         self.root.geometry("500x600")
-
 
         # --- Main layout: left sidebar and right main area ---
         main_container = tk.Frame(self.root, bg="white")
@@ -141,35 +146,21 @@ class ChatWindow:
 
         # --- Start Receiving Messages ---
         if self.initial_message:
-            for msg in self.initial_message:   # ✅ loop through messages individually
+            for msg in self.initial_message:
                 self.root.after(100, self.process_message, msg)
 
         threading.Thread(target=self.receive_messages, daemon=True).start()
         # Handle window close (X button)
         self.root.protocol("WM_DELETE_WINDOW", self.back_to_groups)
 
-
     def open_notifications(self):
-        notifications = []
-        try:
-            # Create a new socket connection to fetch notifications
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((self.ip_address, 12345))  # Change port if needed
-            s.sendall(f"GETNOTIFICATIONS:{self.username}".encode())
-            s.settimeout(2)
-            data = s.recv(4096).decode()
-            if data.startswith("NOTIFICATIONS:"):
-                notif_str = data[len("NOTIFICATIONS:"):].strip()
-                notifications = [n for n in notif_str.split("||") if n]
-        except Exception as e:
-            print(f"Error fetching notifications: {e}")
-        finally:
-            try:
-                s.close()
-            except:
-                pass
+        notifications = [
+            "You have a new message in this group.",
+            "Someone joined the group.",
+            "Welcome to SevenChat!"
+        ]
         NotificationWindow(self.username, self.ip_address, self.root, notifications)
-    # --- Chat Bubble Helper ---
+    
     def add_message(self, name, msg, is_me=False):
         timestamp = datetime.datetime.now().strftime("%H:%M")
 
@@ -179,7 +170,7 @@ class ChatWindow:
         row.grid_columnconfigure(1, weight=1)
 
         col = 1 if is_me else 0
-        sticky = "ne" if is_me else "nw"  # top right for us, left for others
+        sticky = "ne" if is_me else "nw"
         name_fg = "green" if is_me else "blue"
         bubble_bg = "lightgreen" if is_me else "lightblue"
         name_anchor = "ne" if is_me else "nw"
@@ -221,38 +212,31 @@ class ChatWindow:
         # Auto-scroll
         self.root.after(50, lambda: self.canvas.yview_moveto(1.0))
 
-    # --- Send Message ---
     def send_message(self, event=None):
         msg = self.entry.get().strip()
         if msg:
             try:
-                # Send message in format: "username: message"
                 formatted_msg = f"{self.username}: {msg}"
                 self.client.sendall(formatted_msg.encode())
                 self.add_message(self.username, msg, is_me=True)
             except Exception as e:
                 print("Send failed:", e)
         self.entry.delete(0, tk.END)
-        self.entry.focus()  # Add focus back to entry
+        self.entry.focus()
         
     def process_message(self, msg):
-        """Processes a single message string and adds it to the UI."""
-        # Handle server announcements
         if msg.startswith("[SERVER]:"):
             announcement = msg.replace("[SERVER]:", "").strip()
             self.add_announcement(announcement)
-            return # Use return instead of continue
+            return
         
-        # Handle group list responses (shouldn't happen here, but good practice)
         if msg.startswith("GROUPLIST:"):
             return
             
-        # Handle normal chat messages (username: message)
         if ":" in msg:
             sender, text = msg.split(":", 1)
             self.add_message(sender.strip(), text.strip(), is_me=(sender.strip() == self.username))
         else:
-            # Handle other message formats
             self.add_message("System", msg, is_me=False)
 
     def receive_messages(self):
@@ -262,10 +246,8 @@ class ChatWindow:
                 if not data:
                     break
 
-                # Split by newline to handle buffered history
                 for msg in data.strip().split("\n"):
                     if msg:
-                        # Schedule UI-safe call
                         self.root.after(0, self.process_message, msg)
 
             except Exception as e:
@@ -273,7 +255,6 @@ class ChatWindow:
                 self.root.after(0, self.add_announcement, "Connection to server lost.")
                 break
 
-    # --- Announcement Helper ---
     def add_announcement(self, text):
         row = tk.Frame(self.scrollable_frame, bg="white")
         row.pack(fill="x", pady=6)
@@ -299,11 +280,21 @@ class ChatWindow:
         except Exception as e:
             print(f"Failed to send LEAVE_GROUP message: {e}")
 
-        # Then destroy window
+        # Clear active group from notification system
+        if self.notification_system:
+            try:
+                self.notification_system.set_active_group(None)
+            except Exception as e:
+                print(f"Error clearing active group: {e}")
+
+        # Close the client socket
+        try:
+            self.client.close()
+        except Exception as e:
+            print(f"Error closing client socket: {e}")
+
+        # Destroy window
         self.root.destroy()
 
-    # --- Run Mainloop ---
     def run(self):
         self.root.mainloop()
-
-

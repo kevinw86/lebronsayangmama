@@ -1,29 +1,35 @@
 import tkinter as tk
 import socket
 from tkinter import simpledialog, messagebox
-from network import connect_to_server # Import the connection function
+from network import connect_to_server
+import threading
+import time
 
 class GroupListWindow:
-    def __init__(self, username, ip_address, joined_groups):
+    def __init__(self, username, ip_address, joined_groups, notification_system=None):
         self.username = username
         self.ip_address = ip_address
         self.joined_groups = joined_groups
+        self.notification_system = notification_system
         self.groups = []
         self.selected_group = None
         self.selected_group_password = None
+        self.was_closed = False  # Flag to track if window was closed manually
 
-        # --- The rest of the __init__ method is the same ---
+        if self.notification_system:
+            self.notification_system.set_group_window(self)
+
         self.root = tk.Tk()
         self.root.title("Group List")
         self.root.geometry("400x500")
         self.root.configure(bg="white")
 
+        # Handle window close event
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        # --- Main layout: left sidebar and right main area ---
         main_container = tk.Frame(self.root, bg="white")
         main_container.pack(fill=tk.BOTH, expand=True)
 
-        # --- Left Sidebar ---
         sidebar_container = tk.Frame(main_container, bg="#e0e0e0", bd=2, relief="ridge", width=135)
         sidebar_container.pack(side="left", fill="y")
         sidebar_container.pack_propagate(False)
@@ -31,7 +37,6 @@ class GroupListWindow:
         left_sidebar = tk.Frame(sidebar_container, bg="white")
         left_sidebar.pack(fill="both", expand=True, padx=16, pady=16)
 
-        # Username label above box
         tk.Label(
             left_sidebar,
             text="Username",
@@ -40,7 +45,6 @@ class GroupListWindow:
             fg="#454545"
         ).pack(pady=(10,0), padx=5, anchor="w")
 
-        # Username box
         username_frame = tk.Frame(left_sidebar, bg="#f5f5f5", relief="groove", bd=3, padx=6, pady=6)
         username_frame.pack(pady=(5,15), padx=5, fill="x")
         tk.Label(
@@ -50,7 +54,6 @@ class GroupListWindow:
             bg="#f5f5f5"
         ).pack(pady=8)
 
-        # IP Address label above box
         tk.Label(
             left_sidebar,
             text="IP Address",
@@ -59,7 +62,6 @@ class GroupListWindow:
             fg="#454545"
         ).pack(pady=(0,0), padx=5, anchor="w")
 
-        # IP Address box
         ip_frame = tk.Frame(left_sidebar, bg="#f5f5f5", relief="groove", bd=3, padx=6, pady=6)
         ip_frame.pack(pady=(5,15), padx=5, fill="x")
         tk.Label(
@@ -69,7 +71,6 @@ class GroupListWindow:
             bg="#f5f5f5"
         ).pack(pady=8)
 
-        # --- Right main area ---
         right_container = tk.Frame(main_container, bg="white")
         right_container.pack(side="left", fill="both", expand=True)
 
@@ -82,14 +83,12 @@ class GroupListWindow:
         )
         header.pack(side="left", fill=tk.X, expand=True)
 
-        # Notification button (after group list is displayed)
-        notif_btn = tk.Button(
+        self.notif_btn = tk.Button(
             header_frame, text="🔔", font=("Arial", 16), bg="white", fg="darkred",
             relief="flat", command=self.open_notifications
         )
-        notif_btn.pack(side="right", padx=10, pady=5)
+        self.notif_btn.pack(side="right", padx=10, pady=5)
 
-        # --- Scrollable group list ---
         container = tk.Frame(right_container, bg="white")
         container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
 
@@ -112,11 +111,9 @@ class GroupListWindow:
         self.canvas.bind_all("<Button-4>", self._on_mousewheel)
         self.canvas.bind_all("<Button-5>", self._on_mousewheel)
 
-        # Initial fetch and display
         self.fetch_groups()
         self.display_groups()
 
-        # --- Action buttons at the bottom ---
         button_frame = tk.Frame(right_container, bg="white")
         button_frame.pack(side="bottom", fill="x", padx=20, pady=10)
 
@@ -144,24 +141,65 @@ class GroupListWindow:
         )
         delete_btn.pack(fill=tk.X, pady=4)
 
-    def open_notifications(self):
-        notifications = []
-        client = None
+        self.update_notification_indicator()
+
+    def on_closing(self):
+        """Handle the window close event"""
+        self.was_closed = True
+        if self.notification_system:
+            self.notification_system.set_group_window(None)  # Clear reference in notification system
         try:
-            client = connect_to_server(host=self.ip_address)
-            client.sendall(f"GETNOTIFICATIONS:{self.username}".encode())
-            client.settimeout(2)
-            data = client.recv(4096).decode()
-            if data.startswith("NOTIFICATIONS:"):
-                notif_str = data[len("NOTIFICATIONS:"):].strip()
-                notifications = [n for n in notif_str.split("||") if n]
+            self.root.destroy()
         except Exception as e:
-            print(f"Error fetching notifications: {e}")
-        finally:
-            if client:
-                client.close()
-        from notification import NotificationWindow
-        NotificationWindow(self.username, self.ip_address, self.root, notifications)
+            print(f"[ERROR] Destroying group list window: {e}")
+
+    def update_notification_indicator(self):
+        """Update the notification button safely, checking if window exists."""
+        try:
+            if not self.root.winfo_exists():
+                return  # Window destroyed, do nothing
+        
+            unread = 0
+            if self.notification_system:
+                try:
+                    unread_dict = self.notification_system.get_unread_messages()
+                    # Count total unread messages across all groups except active
+                    unread = sum(len(msgs) for msgs in unread_dict.values())
+                except Exception as e:
+                    print(f"[ERROR] Getting unread messages: {e}")
+        
+            # Update bell icon based on unread count
+            if unread > 0:
+                self.notif_btn.config(text=f"🔔🔴 ({unread})")
+            else:
+                self.notif_btn.config(text="🔔")
+        except Exception as e:
+            print(f"[ERROR] Updating notification indicator: {e}")
+
+
+    def open_notifications(self):
+        if self.notification_system:
+            unread = self.notification_system.get_unread_messages()
+            if unread:
+                from notification import NotificationWindow
+                NotificationWindow(self.username, self.ip_address, self.root, unread)
+                self.notification_system.clear_notifications()
+            else:
+                notifications = [
+                    "You have a new message in Group1.",
+                    "Group2 was updated.",
+                    "Welcome to SevenChat!"
+                ]
+                from notification import NotificationWindow
+                NotificationWindow(self.username, self.ip_address, self.root, notifications)
+        else:
+            notifications = [
+                "You have a new message in Group1.",
+                "Group2 was updated.",
+                "Welcome to SevenChat!"
+            ]
+            from notification import NotificationWindow
+            NotificationWindow(self.username, self.ip_address, self.root, notifications)
 
     def _on_mousewheel(self, event):
         if event.num == 5 or event.delta < 0:
@@ -172,7 +210,6 @@ class GroupListWindow:
     def fetch_groups(self):
         client = None
         try:
-            # Create a NEW connection just for this task
             client = connect_to_server(host=self.ip_address)
             client.sendall("GETGROUPS".encode())
             client.settimeout(2)
@@ -187,7 +224,7 @@ class GroupListWindow:
             self.groups = []
         finally:
             if client:
-                client.close() # Always close the temporary connection
+                client.close()
 
     def display_groups(self):
         for widget in self.group_frame.winfo_children():
@@ -219,18 +256,15 @@ class GroupListWindow:
 
     def select_group(self, group_name, widget):
         self.selected_group = group_name
-        # Visual feedback for selection
         for w in self.group_frame.winfo_children():
             w.config(bg="white")
             for label in w.winfo_children():
                 label.config(bg="white")
         
-        # Find the parent frame to highlight
         parent_frame = widget if isinstance(widget, tk.Frame) else widget.master
         parent_frame.config(bg="#fadadd")
         for label in parent_frame.winfo_children():
             label.config(bg="#fadadd")
-
 
     def open_group(self, group_name):
         self.selected_group = group_name
@@ -240,29 +274,25 @@ class GroupListWindow:
         if self.selected_group is None:
             messagebox.showwarning("No Group Selected", "Please select a group to join.")
             return
-        # Check if we already have a password for this group
         if self.selected_group in self.joined_groups:
             self.selected_group_password = self.joined_groups[self.selected_group]
-            self.root.quit() # Join automatically
+            self.root.quit()
             return
         password = simpledialog.askstring("Join Group", f"Enter password for '{self.selected_group}':", show='*')
-        if password is not None: # Check for cancel button
+        if password is not None:
             self.selected_group_password = password
             self.root.quit()
-
 
     def create_group(self):
         groupname = simpledialog.askstring("Create Group", "Enter new group name:")
         if not groupname:
             return
         password = simpledialog.askstring("Create Group", "Set group password:", show='*')
-        if password is None: # User cancelled
+        if password is None:
             return
         client = None
         try:
-            # Create a NEW connection for this task
             client = connect_to_server(host=self.ip_address)
-            # The backend needs to handle CREATEGROUP as a first message.
             client.sendall(f"CREATEGROUP:{groupname}|{password}".encode())
             client.settimeout(2)
             resp = client.recv(1024).decode()
@@ -272,8 +302,7 @@ class GroupListWindow:
             messagebox.showerror("Error", f"Failed to create group: {e}")
         finally:
             if client:
-                client.close() # Always close the connection
-        # After attempting to create, refresh the group list
+                client.close()
         self.fetch_groups()
         self.display_groups()
 
@@ -290,7 +319,6 @@ class GroupListWindow:
         client = None
         try:
             client = connect_to_server(host=self.ip_address)
-            # The backend needs to handle DELETEGROUP as a first message.
             client.sendall(f"DELETEGROUP:{self.selected_group}|{password}".encode())
             client.settimeout(2)
             resp = client.recv(1024).decode()
@@ -301,7 +329,6 @@ class GroupListWindow:
         finally:
             if client:
                 client.close()
-        # After attempting to delete, refresh the group list
         self.fetch_groups()
         self.display_groups()
 
