@@ -154,9 +154,13 @@ def handle_client(conn, addr):
                 except:
                     pass
 
-        # Announce join to group
-        join_announcement = f"[SERVER]: {username} joined the group."
-        broadcast_message(join_announcement, sender_conn=conn, group=group)
+        # Check if this is a monitoring connection - don't announce if so
+        is_monitor = "__monitor" in username
+        
+        # Announce join to group (only for real users, not monitors)
+        if not is_monitor:
+            join_announcement = f"[SERVER]: {username} joined the group."
+            broadcast_message(join_announcement, sender_conn=conn, group=group)
 
         # Send welcome message and recent messages
         welcome_msg = f"[SERVER]: Welcome {username} to {group}!"
@@ -174,14 +178,18 @@ def handle_client(conn, addr):
 
                 if msg.startswith("LEAVE_GROUP|"):
                     leave_user = msg.split("|", 1)[1]
-                    announcement = f"[SERVER]: {leave_user} left the group."
-                    broadcast_message(announcement, sender_conn=conn, group=group)
+                    # Don't announce leaving for monitor connections
+                    if not "__monitor" in leave_user:
+                        announcement = f"[SERVER]: {leave_user} left the group."
+                        broadcast_message(announcement, sender_conn=conn, group=group)
                     left_already = True
                     break
                     
-                messages_buffer[group].append(msg)
-                if len(messages_buffer[group]) > MAX_BUFFER:
-                    messages_buffer[group].pop(0)
+                # Don't store messages from monitor connections in buffer
+                if not is_monitor:
+                    messages_buffer[group].append(msg)
+                    if len(messages_buffer[group]) > MAX_BUFFER:
+                        messages_buffer[group].pop(0)
                     
                 broadcast_message(msg, sender_conn=conn, group=group)
 
@@ -196,8 +204,10 @@ def handle_client(conn, addr):
         if conn in clients:
             left_user = clients[conn]["username"]
             left_group = clients[conn]["group"]
+            is_monitor = "__monitor" in left_user
 
-            if not left_already and left_group:
+            # Only announce leaving for real users, not monitors
+            if not left_already and left_group and not is_monitor:
                 announcement = f"[SERVER]: {left_user} left the group."
                 try:
                     broadcast_message(announcement, sender_conn=conn, group=left_group)

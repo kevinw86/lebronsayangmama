@@ -89,11 +89,24 @@ class ChatWindow:
             pady=10
         )
         header.pack(side="left", fill=tk.X, expand=True)
-        notif_btn = tk.Button(
-            header_frame, text="🔔", font=("Arial", 16), bg="lightgray", fg="darkred",
+        
+        # Create notification button container with indicator
+        notif_container = tk.Frame(header_frame, bg="lightgray")
+        notif_container.pack(side="right", padx=10, pady=5)
+
+        # Bell icon button
+        self.notif_btn = tk.Button(
+            notif_container, text="🔔", font=("Arial", 16), bg="lightgray", fg="darkred",
             relief="flat", command=self.open_notifications
         )
-        notif_btn.pack(side="right", padx=10, pady=5)
+        self.notif_btn.pack()
+
+        # Small red indicator dot (initially hidden)
+        self.indicator_dot = tk.Label(
+            notif_container, text="🔴", font=("Arial", 8), bg="lightgray"
+        )
+        self.indicator_dot.place(in_=self.notif_btn, x=18, y=-2)  # Position at top-right of bell
+        self.indicator_dot.place_forget()  # Hide initially
 
         # --- Back Button (moved to left sidebar bottom) ---
         back_btn = tk.Button(
@@ -153,13 +166,62 @@ class ChatWindow:
         # Handle window close (X button)
         self.root.protocol("WM_DELETE_WINDOW", self.back_to_groups)
 
+        # Start checking for notifications
+        self.update_notification_indicator()
+
+    def update_notification_indicator(self):
+        """Update the notification indicator dot"""
+        try:
+            if not self.root.winfo_exists():
+                return  # Window destroyed, do nothing
+        
+            has_notifications = False
+            if self.notification_system:
+                try:
+                    has_notifications = self.notification_system.has_unread_messages()
+                except Exception as e:
+                    print(f"[ERROR] Checking unread messages: {e}")
+        
+            # Show/hide the red dot based on notifications from OTHER groups
+            if has_notifications:
+                self.indicator_dot.place(in_=self.notif_btn, x=18, y=-2)
+            else:
+                self.indicator_dot.place_forget()
+
+            # Schedule next update
+            self.root.after(1000, self.update_notification_indicator)
+                
+        except Exception as e:
+            print(f"[ERROR] Updating notification indicator: {e}")
+
     def open_notifications(self):
-        notifications = [
-            "You have a new message in this group.",
-            "Someone joined the group.",
-            "Welcome to SevenChat!"
-        ]
-        NotificationWindow(self.username, self.ip_address, self.root, notifications)
+        """Open notification window showing messages from other groups"""
+        # Mark notifications as viewed when bell is clicked (hides the red dot)
+        if self.notification_system:
+            self.notification_system.mark_notifications_as_viewed()
+        
+        # Then open the notification window
+        if self.notification_system:
+            unread = self.notification_system.get_unread_messages()
+            # Show notifications window with real-time updates
+            NotificationWindow(
+                self.username, 
+                self.ip_address, 
+                self.root, 
+                unread, 
+                self.notification_system
+            )
+        else:
+            # Fallback if no notification system
+            notifications = {
+                "Sample Group": ["You have new messages from other groups."]
+            }
+            NotificationWindow(
+                self.username, 
+                self.ip_address, 
+                self.root, 
+                notifications
+            )
     
     def add_message(self, name, msg, is_me=False):
         timestamp = datetime.datetime.now().strftime("%H:%M")

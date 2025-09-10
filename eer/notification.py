@@ -64,7 +64,7 @@ class NotificationWindow:
             bg="#f5f5f5"
         ).pack(pady=8)
 
-        # Clear all notifications button
+        # Clear all notifications button - only clear when user explicitly clicks
         clear_btn = tk.Button(
             left_sidebar,
             text="Clear All",
@@ -143,14 +143,19 @@ class NotificationWindow:
         self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def on_closing(self):
-        """Handle window close event"""
+        """Handle window close event - auto-clear notifications when window is closed"""
         self.running = False
         if self.update_thread and self.update_thread.is_alive():
             self.update_thread.join(timeout=1.0)
+        
+        # Clear all notifications when notification window is closed
+        if self.notification_system:
+            self.notification_system.clear_notifications()
+            
         self.root.destroy()
 
     def clear_all_notifications(self):
-        """Clear all notifications"""
+        """Clear all notifications - only when user explicitly requests"""
         if self.notification_system:
             self.notification_system.clear_notifications()
         self.notifications = {}
@@ -166,10 +171,16 @@ class NotificationWindow:
                         if new_notifications != self.notifications:
                             self.notifications = new_notifications
                             # Schedule UI update on main thread
-                            self.root.after(0, self.update_notifications_display)
+                            try:
+                                self.root.after(0, self.update_notifications_display)
+                            except:
+                                break  # Window might be destroyed
                     
                     # Update refresh indicator
-                    self.root.after(0, self.update_refresh_indicator)
+                    try:
+                        self.root.after(0, self.update_refresh_indicator)
+                    except:
+                        break  # Window might be destroyed
                     
                     time.sleep(1)  # Check for updates every second
                 except Exception as e:
@@ -181,6 +192,8 @@ class NotificationWindow:
 
     def update_refresh_indicator(self):
         """Update the refresh indicator to show activity"""
+        if not self.running:
+            return
         try:
             current_text = self.refresh_label.cget("text")
             if current_text == "🔄 Live":
@@ -192,6 +205,8 @@ class NotificationWindow:
 
     def update_notifications_display(self):
         """Update the notifications display"""
+        if not self.running:
+            return
         try:
             # Clear existing widgets
             for widget in self.scrollable_frame.winfo_children():

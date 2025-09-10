@@ -83,11 +83,23 @@ class GroupListWindow:
         )
         header.pack(side="left", fill=tk.X, expand=True)
 
+        # Create notification button container
+        notif_container = tk.Frame(header_frame, bg="white")
+        notif_container.pack(side="right", padx=10, pady=5)
+
+        # Bell icon button
         self.notif_btn = tk.Button(
-            header_frame, text="🔔", font=("Arial", 16), bg="white", fg="darkred",
+            notif_container, text="🔔", font=("Arial", 16), bg="white", fg="darkred",
             relief="flat", command=self.open_notifications
         )
-        self.notif_btn.pack(side="right", padx=10, pady=5)
+        self.notif_btn.pack()
+
+        # Small red indicator dot (initially hidden)
+        self.indicator_dot = tk.Label(
+            notif_container, text="🔴", font=("Arial", 8), bg="white"
+        )
+        self.indicator_dot.place(in_=self.notif_btn, x=18, y=-2)  # Position at top-right of bell
+        self.indicator_dot.place_forget()  # Hide initially
 
         container = tk.Frame(right_container, bg="white")
         container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
@@ -141,7 +153,33 @@ class GroupListWindow:
         )
         delete_btn.pack(fill=tk.X, pady=4)
 
+        # Start checking for notifications
         self.update_notification_indicator()
+
+    def update_notification_indicator(self):
+        """Update the notification indicator dot"""
+        try:
+            if not self.root.winfo_exists():
+                return  # Window destroyed, do nothing
+        
+            has_notifications = False
+            if self.notification_system:
+                try:
+                    has_notifications = self.notification_system.has_unread_messages()
+                except Exception as e:
+                    print(f"[ERROR] Checking unread messages: {e}")
+        
+            # Show/hide the red dot based on notifications
+            if has_notifications:
+                self.indicator_dot.place(in_=self.notif_btn, x=18, y=-2)
+            else:
+                self.indicator_dot.place_forget()
+
+            # Schedule next update
+            self.root.after(1000, self.update_notification_indicator)
+                
+        except Exception as e:
+            print(f"[ERROR] Updating notification indicator: {e}")
 
     def on_closing(self):
         """Handle the window close event"""
@@ -153,53 +191,30 @@ class GroupListWindow:
         except Exception as e:
             print(f"[ERROR] Destroying group list window: {e}")
 
-    def update_notification_indicator(self):
-        """Update the notification button safely, checking if window exists."""
-        try:
-            if not self.root.winfo_exists():
-                return  # Window destroyed, do nothing
-        
-            unread = 0
-            if self.notification_system:
-                try:
-                    unread_dict = self.notification_system.get_unread_messages()
-                    # Count total unread messages across all groups except active
-                    unread = sum(len(msgs) for msgs in unread_dict.values())
-                except Exception as e:
-                    print(f"[ERROR] Getting unread messages: {e}")
-        
-            # Update bell icon based on unread count
-            if unread > 0:
-                self.notif_btn.config(text=f"🔔🔴 ({unread})")
-            else:
-                self.notif_btn.config(text="🔔")
-        except Exception as e:
-            print(f"[ERROR] Updating notification indicator: {e}")
-
-
     def open_notifications(self):
+        # Mark notifications as viewed when bell is clicked (hides the red dot)
+        if self.notification_system:
+            self.notification_system.mark_notifications_as_viewed()
+        
+        # Then open the notification window
         if self.notification_system:
             unread = self.notification_system.get_unread_messages()
             if unread:
                 from notification import NotificationWindow
-                NotificationWindow(self.username, self.ip_address, self.root, unread)
-                self.notification_system.clear_notifications()
+                # Pass notification system but don't clear yet
+                NotificationWindow(self.username, self.ip_address, self.root, unread, self.notification_system)
             else:
-                notifications = [
-                    "You have a new message in Group1.",
-                    "Group2 was updated.",
-                    "Welcome to SevenChat!"
-                ]
+                notifications = {
+                    "Welcome": ["You have no new notifications.", "Welcome to SevenChat!"]
+                }
                 from notification import NotificationWindow
-                NotificationWindow(self.username, self.ip_address, self.root, notifications)
+                NotificationWindow(self.username, self.ip_address, self.root, notifications, self.notification_system)
         else:
-            notifications = [
-                "You have a new message in Group1.",
-                "Group2 was updated.",
-                "Welcome to SevenChat!"
-            ]
+            notifications = {
+                "Sample": ["You have a new message in Group1.", "Group2 was updated.", "Welcome to SevenChat!"]
+            }
             from notification import NotificationWindow
-            NotificationWindow(self.username, self.ip_address, self.root, notifications)
+            NotificationWindow(self.username, self.ip_address, self.root, notifications, self.notification_system)
 
     def _on_mousewheel(self, event):
         if event.num == 5 or event.delta < 0:
