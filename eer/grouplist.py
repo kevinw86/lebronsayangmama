@@ -21,7 +21,7 @@ class GroupListWindow:
 
         self.root = tk.Tk()
         self.root.title("Group List")
-        self.root.geometry("400x500")
+        self.root.geometry("800x700")
         self.root.configure(bg="white")
 
         # Handle window close event
@@ -30,83 +30,161 @@ class GroupListWindow:
         main_container = tk.Frame(self.root, bg="white")
         main_container.pack(fill=tk.BOTH, expand=True)
 
-        sidebar_container = tk.Frame(main_container, bg="#e0e0e0", bd=2, relief="ridge", width=135)
+        # Enhanced sidebar with gradient-like effect
+        sidebar_container = tk.Frame(main_container, bg="#2c3e50", bd=0, relief="flat", width=220)
         sidebar_container.pack(side="left", fill="y")
         sidebar_container.pack_propagate(False)
 
-        left_sidebar = tk.Frame(sidebar_container, bg="white")
-        left_sidebar.pack(fill="both", expand=True, padx=16, pady=16)
+        # Add a subtle border line
+        border_line = tk.Frame(main_container, bg="#34495e", width=2)
+        border_line.pack(side="left", fill="y")
 
+        left_sidebar = tk.Frame(sidebar_container, bg="#2c3e50")
+        left_sidebar.pack(fill="both", expand=True, padx=20, pady=25)
+
+        # Profile section with modern styling
+        profile_header = tk.Label(
+            left_sidebar,
+            text="👤 Profile",
+            font=("Segoe UI", 14, "bold"),
+            bg="#2c3e50",
+            fg="#ecf0f1"
+        )
+        profile_header.pack(pady=(0, 20), anchor="w")
+
+        # Username section with modern card design
         tk.Label(
             left_sidebar,
             text="Username",
-            font=("Arial", 11, "bold"),
-            bg="white",
-            fg="#454545"
-        ).pack(pady=(10,0), padx=5, anchor="w")
+            font=("Segoe UI", 10, "bold"),
+            bg="#2c3e50",
+            fg="#bdc3c7"
+        ).pack(pady=(0, 5), anchor="w")
 
-        username_frame = tk.Frame(left_sidebar, bg="#f5f5f5", relief="groove", bd=3, padx=6, pady=6)
-        username_frame.pack(pady=(5,15), padx=5, fill="x")
+        username_frame = tk.Frame(left_sidebar, bg="#34495e", relief="flat", bd=0)
+        username_frame.pack(pady=(0, 20), fill="x")
+        
+        username_inner = tk.Frame(username_frame, bg="#34495e")
+        username_inner.pack(fill="x", padx=15, pady=12)
+        
         tk.Label(
-            username_frame,
-            text=f"{self.username}",
-            font=("Arial", 12, "bold"),
-            bg="#f5f5f5"
-        ).pack(pady=8)
+            username_inner,
+            text=f"✉ {self.username}",
+            font=("Segoe UI", 12, "bold"),
+            bg="#34495e",
+            fg="#ecf0f1"
+        ).pack(anchor="w")
 
+        # IP Address section with modern card design
         tk.Label(
             left_sidebar,
-            text="IP Address",
-            font=("Arial", 11, "bold"),
-            bg="white",
-            fg="#454545"
-        ).pack(pady=(0,0), padx=5, anchor="w")
+            text="Server Address",
+            font=("Segoe UI", 10, "bold"),
+            bg="#2c3e50",
+            fg="#bdc3c7"
+        ).pack(pady=(0, 5), anchor="w")
 
-        ip_frame = tk.Frame(left_sidebar, bg="#f5f5f5", relief="groove", bd=3, padx=6, pady=6)
-        ip_frame.pack(pady=(5,15), padx=5, fill="x")
+        ip_frame = tk.Frame(left_sidebar, bg="#34495e", relief="flat", bd=0)
+        ip_frame.pack(pady=(0, 25), fill="x")
+        
+        ip_inner = tk.Frame(ip_frame, bg="#34495e")
+        ip_inner.pack(fill="x", padx=15, pady=12)
+        
         tk.Label(
-            ip_frame,
-            text=f"{self.ip_address}",
-            font=("Arial", 12, "bold"),
-            bg="#f5f5f5"
-        ).pack(pady=8)
+            ip_inner,
+            text=f"🌐 {self.ip_address}",
+            font=("Segoe UI", 12, "bold"),
+            bg="#34495e",
+            fg="#ecf0f1"
+        ).pack(anchor="w")
 
-        right_container = tk.Frame(main_container, bg="white")
+        # Status indicator
+        status_frame = tk.Frame(left_sidebar, bg="#2c3e50")
+        status_frame.pack(fill="x", pady=(10, 0))
+        
+        tk.Label(
+            status_frame,
+            text="🟢 Online",
+            font=("Segoe UI", 10),
+            bg="#2c3e50",
+            fg="#27ae60"
+        ).pack(anchor="w")
+
+        right_container = tk.Frame(main_container, bg="#ecf0f1")
         right_container.pack(side="left", fill="both", expand=True)
 
-        header_frame = tk.Frame(right_container, bg="white")
+        # Modern header with gradient-like styling
+        header_frame = tk.Frame(right_container, bg="#3498db", height=80)
         header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+        
+        # Header content container
+        header_content = tk.Frame(header_frame, bg="#3498db")
+        header_content.pack(fill="both", expand=True, padx=30, pady=20)
+        
         header = tk.Label(
-            header_frame, text="Group List",
-            font=("Arial", 18, "bold"),
-            bg="white", pady=10
+            header_content, text="💬 Group List",
+            font=("Segoe UI", 24, "bold"),
+            bg="#3498db", fg="white"
         )
-        header.pack(side="left", fill=tk.X, expand=True)
+        header.pack(side="left", anchor="w")
 
         # Create notification button container
-        notif_container = tk.Frame(header_frame, bg="white")
-        notif_container.pack(side="right", padx=10, pady=5)
+        notif_container = tk.Frame(header_content, bg="#3498db")
+        notif_container.pack(side="right", padx=15)
 
-        # Bell icon button
+        # Modern bell icon button with styling
         self.notif_btn = tk.Button(
-            notif_container, text="🔔", font=("Arial", 16), bg="white", fg="darkred",
-            relief="flat", command=self.open_notifications
+            notif_container, text="🔔", font=("Segoe UI", 20), 
+            bg="#2980b9", fg="white", relief="flat", bd=0,
+            padx=15, pady=10, cursor="hand2",
+            command=self.open_notifications
         )
         self.notif_btn.pack()
 
+        # Hover effects for notification button
+        self.notif_btn.bind("<Enter>", lambda e: self.notif_btn.configure(bg="#1f618d"))
+        self.notif_btn.bind("<Leave>", lambda e: self.notif_btn.configure(bg="#2980b9"))
+
         # Small red indicator dot (initially hidden)
         self.indicator_dot = tk.Label(
-            notif_container, text="🔴", font=("Arial", 8), bg="white"
+            notif_container, text="🔴", font=("Arial", 8), bg="#3498db"
         )
-        self.indicator_dot.place(in_=self.notif_btn, x=18, y=-2)  # Position at top-right of bell
+        self.indicator_dot.place(in_=self.notif_btn, x=25, y=-2)  # Position at top-right of bell
         self.indicator_dot.place_forget()  # Hide initially
 
-        container = tk.Frame(right_container, bg="white")
-        container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
+        # Main content area with modern styling
+        content_wrapper = tk.Frame(right_container, bg="#ecf0f1")
+        content_wrapper.pack(fill=tk.BOTH, expand=True, padx=30, pady=25)
 
-        self.canvas = tk.Canvas(container, bg="white", highlightthickness=0)
+        # Groups section header
+        groups_header = tk.Frame(content_wrapper, bg="#ecf0f1")
+        groups_header.pack(fill="x", pady=(0, 20))
+        
+        tk.Label(
+            groups_header, text="Available Groups",
+            font=("Segoe UI", 16, "bold"),
+            bg="#ecf0f1", fg="#2c3e50"
+        ).pack(anchor="w")
+        
+        tk.Label(
+            groups_header, text="Select a group to join or manage",
+            font=("Segoe UI", 11),
+            bg="#ecf0f1", fg="#7f8c8d"
+        ).pack(anchor="w")
+
+        # Container for scrollable group list
+        container = tk.Frame(content_wrapper, bg="#ecf0f1")
+        container.pack(fill=tk.BOTH, expand=True, pady=(0, 25))
+
+        # Modern scrollable canvas with border
+        canvas_frame = tk.Frame(container, bg="#bdc3c7", bd=1, relief="solid")
+        canvas_frame.pack(fill="both", expand=True)
+
+        self.canvas = tk.Canvas(canvas_frame, bg="white", highlightthickness=0, bd=0)
         self.scrollbar = tk.Scrollbar(
-            container, orient="vertical", command=self.canvas.yview
+            canvas_frame, orient="vertical", command=self.canvas.yview,
+            bg="#95a5a6", troughcolor="#ecf0f1", width=12
         )
         self.group_frame = tk.Frame(self.canvas, bg="white")
         self.canvas.create_window((0, 0), window=self.group_frame, anchor="nw")
@@ -126,32 +204,49 @@ class GroupListWindow:
         self.fetch_groups()
         self.display_groups()
 
-        button_frame = tk.Frame(right_container, bg="white")
-        button_frame.pack(side="bottom", fill="x", padx=20, pady=10)
+        # Modern action buttons section
+        button_frame = tk.Frame(content_wrapper, bg="#ecf0f1")
+        button_frame.pack(side="bottom", fill="x", pady=(15, 0))
 
+        # Button styling with modern flat design
         create_btn = tk.Button(
-            button_frame, text="Create Group",
-            font=("Arial", 12, "bold"),
-            bg="#89b4fa", fg="black",
+            button_frame, text="➕ Create Group",
+            font=("Segoe UI", 10, "bold"),
+            bg="#27ae60", fg="white", relief="flat", bd=0,
+            padx=15, pady=8, cursor="hand2",
             command=self.create_group
         )
-        create_btn.pack(fill=tk.X, pady=4)
+        create_btn.pack(fill=tk.X, pady=(0, 10))
+        
+        # Hover effects for create button
+        create_btn.bind("<Enter>", lambda e: create_btn.configure(bg="#229954"))
+        create_btn.bind("<Leave>", lambda e: create_btn.configure(bg="#27ae60"))
 
         join_btn = tk.Button(
-            button_frame, text="Join Selected Group",
-            font=("Arial", 12, "bold"),
-            bg="#a6e3a1", fg="black",
+            button_frame, text="🚪 Join Selected Group",
+            font=("Segoe UI", 10, "bold"),
+            bg="#3498db", fg="white", relief="flat", bd=0,
+            padx=15, pady=8, cursor="hand2",
             command=self.join_group
         )
-        join_btn.pack(fill=tk.X, pady=4)
+        join_btn.pack(fill=tk.X, pady=(0, 10))
+        
+        # Hover effects for join button
+        join_btn.bind("<Enter>", lambda e: join_btn.configure(bg="#2980b9"))
+        join_btn.bind("<Leave>", lambda e: join_btn.configure(bg="#3498db"))
 
         delete_btn = tk.Button(
-            button_frame, text="Delete Selected Group",
-            font=("Arial", 12, "bold"),
-            bg="#f38ba8", fg="white",
+            button_frame, text="🗑️ Delete Selected Group",
+            font=("Segoe UI", 10, "bold"),
+            bg="#e74c3c", fg="white", relief="flat", bd=0,
+            padx=15, pady=8, cursor="hand2",
             command=self.delete_group
         )
-        delete_btn.pack(fill=tk.X, pady=4)
+        delete_btn.pack(fill=tk.X, pady=(0, 0))
+        
+        # Hover effects for delete button
+        delete_btn.bind("<Enter>", lambda e: delete_btn.configure(bg="#c0392b"))
+        delete_btn.bind("<Leave>", lambda e: delete_btn.configure(bg="#e74c3c"))
 
         # Start checking for notifications
         self.update_notification_indicator()
@@ -246,40 +341,113 @@ class GroupListWindow:
             widget.destroy()
 
         if not self.groups:
+            # Modern empty state design
+            empty_container = tk.Frame(self.group_frame, bg="white")
+            empty_container.pack(expand=True, fill="both", pady=40)
+            
             tk.Label(
-                self.group_frame, text="No groups found. Create one!",
-                font=("Arial", 12), bg="white", fg="gray"
-            ).pack(pady=20)
+                empty_container, text="📋",
+                font=("Segoe UI", 48), bg="white", fg="#bdc3c7"
+            ).pack(pady=(20, 10))
+            
+            tk.Label(
+                empty_container, text="No groups found",
+                font=("Segoe UI", 16, "bold"), bg="white", fg="#2c3e50"
+            ).pack()
+            
+            tk.Label(
+                empty_container, text="Create your first group to get started!",
+                font=("Segoe UI", 12), bg="white", fg="#7f8c8d"
+            ).pack(pady=(5, 20))
             return
 
         for idx, group in enumerate(self.groups):
-            color = "#a6e3a1" if idx % 2 == 0 else "#f9e2af"
-            frame = tk.Frame(
-                self.group_frame, bg="white", highlightbackground=color,
-                highlightthickness=2, bd=0
+            # Modern card design for each group - smaller height
+            card_frame = tk.Frame(
+                self.group_frame, bg="white", relief="flat", bd=0
             )
-            frame.pack(fill=tk.X, expand=True, pady=4, padx=10)
-            label = tk.Label(
-                frame, text=group, font=("Arial", 14, "bold"),
-                bg="white", fg="black", pady=10, anchor="w"
+            card_frame.pack(fill=tk.X, padx=15, pady=4)
+            
+            # Card shadow effect (simulated with frames)
+            shadow_frame = tk.Frame(card_frame, bg="#d5dbdb", height=1)
+            shadow_frame.pack(fill="x", side="bottom")
+            
+            # Main card content
+            content_frame = tk.Frame(
+                card_frame, bg="#f8f9fa", relief="solid", bd=1,
+                highlightbackground="#dee2e6", highlightthickness=1
             )
-            label.pack(fill=tk.X, expand=True, padx=10)
-            frame.bind("<Button-1>", lambda e, g=group: self.select_group(g, e.widget))
-            label.bind("<Button-1>", lambda e, g=group: self.select_group(g, e.widget.master))
-            frame.bind("<Double-Button-1>", lambda e, g=group: self.open_group(g))
-            label.bind("<Double-Button-1>", lambda e, g=group: self.open_group(g))
+            content_frame.pack(fill="x", pady=(0, 1))
+            
+            # Group icon and name - extended layout for longer names
+            inner_frame = tk.Frame(content_frame, bg="#f8f9fa")
+            inner_frame.pack(fill="x", padx=15, pady=8)
+            
+            # Group icon - positioned to left with minimal space
+            icon_label = tk.Label(
+                inner_frame, text="👥", 
+                font=("Segoe UI", 16), bg="#f8f9fa"
+            )
+            icon_label.pack(side="left", padx=(0, 8))
+            
+            # Group name and info - extended to take more space
+            text_frame = tk.Frame(inner_frame, bg="#f8f9fa")
+            text_frame.pack(side="left", fill="x", expand=True, padx=(0, 5))
+            
+            name_label = tk.Label(
+                text_frame, text=group, 
+                font=("Segoe UI", 12, "bold"),
+                bg="#f8f9fa", fg="#2c3e50", anchor="w"
+            )
+            name_label.pack(fill="x", anchor="w")
+            
+            # Status indicator - aligned left with group name
+            status_label = tk.Label(
+                text_frame, text="🟢 Active", 
+                font=("Segoe UI", 9),
+                bg="#f8f9fa", fg="#27ae60", anchor="w"
+            )
+            status_label.pack(fill="x", anchor="w")
+            
+            # Bind click events to all elements
+            for widget in [card_frame, content_frame, inner_frame, icon_label, text_frame, name_label, status_label]:
+                widget.bind("<Button-1>", lambda e, g=group, f=content_frame: self.select_group(g, f))
+                widget.bind("<Double-Button-1>", lambda e, g=group: self.open_group(g))
+                widget.bind("<Enter>", lambda e, f=content_frame: f.configure(bg="#e9ecef"))
+                widget.bind("<Leave>", lambda e, f=content_frame: f.configure(bg="#f8f9fa") if not hasattr(f, '_selected') or not f._selected else None)
 
     def select_group(self, group_name, widget):
         self.selected_group = group_name
-        for w in self.group_frame.winfo_children():
-            w.config(bg="white")
-            for label in w.winfo_children():
-                label.config(bg="white")
         
-        parent_frame = widget if isinstance(widget, tk.Frame) else widget.master
-        parent_frame.config(bg="#fadadd")
-        for label in parent_frame.winfo_children():
-            label.config(bg="#fadadd")
+        # Reset all cards to unselected state
+        for w in self.group_frame.winfo_children():
+            for card in w.winfo_children():
+                if hasattr(card, 'winfo_children'):
+                    for content_frame in card.winfo_children():
+                        if isinstance(content_frame, tk.Frame):
+                            content_frame.configure(bg="#f8f9fa")
+                            content_frame._selected = False
+                            # Reset all child frames
+                            for child in content_frame.winfo_children():
+                                if isinstance(child, tk.Frame):
+                                    child.configure(bg="#f8f9fa")
+                                    for grandchild in child.winfo_children():
+                                        if isinstance(grandchild, (tk.Label, tk.Frame)):
+                                            grandchild.configure(bg="#f8f9fa")
+        
+        # Highlight selected card
+        widget.configure(bg="#3498db")
+        widget._selected = True
+        
+        # Update all child elements to match selection color
+        for child in widget.winfo_children():
+            if isinstance(child, tk.Frame):
+                child.configure(bg="#3498db")
+                for grandchild in child.winfo_children():
+                    if isinstance(grandchild, (tk.Label, tk.Frame)):
+                        grandchild.configure(bg="#3498db")
+                        if isinstance(grandchild, tk.Label):
+                            grandchild.configure(fg="white")
 
     def open_group(self, group_name):
         self.selected_group = group_name

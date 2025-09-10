@@ -3,7 +3,7 @@ from chat import ChatWindow
 from grouplist import GroupListWindow
 from network import connect_to_server
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox 
 from notification import NotificationWindow
 
 class ChatApp:
